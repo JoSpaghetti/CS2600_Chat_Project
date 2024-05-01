@@ -6,6 +6,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <time.h>
 
 /* define things for network sockets */
 #define PortNumber 9876
@@ -18,6 +19,19 @@ void report(const char* msg, int status) {
 	perror(msg);
 	exit(status);
 }
+
+void fileWrite(int isOpen) {
+	FILE *filep;
+	filep = fopen("chat_history", "w");
+	time_t rawtime;
+	struct tm * timeinfo;
+	time ( &rawtime );
+	timeinfo = localtime ( &rawtime );
+	char message [560] = "Test Message";
+	printf ( "%s %s", asctime (timeinfo), message );
+	fprintf(filep, message);
+}
+
 
 int main() {
 	/* network vs AF_LOCAL */
@@ -38,11 +52,12 @@ int main() {
 	}
 	
 	/* listen to the socket */
-	if (listen(fd, MaxConnects) < 0) /* listen for clients, up to MaxConnects */
-		report("listen", 1); /* terminate */
+	if (listen(fd, MaxConnects) < 0) { /* listen for clients, up to MaxConnects */
+		report("listen", 1);	/* terminate */
+	}
 	
 	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);
-
+	fileWrite();
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
 		int len = sizeof(caddr); /* address length could change */
@@ -54,4 +69,5 @@ int main() {
 		}
 		// put the read/ write stuff from client
 	}
+	
 }

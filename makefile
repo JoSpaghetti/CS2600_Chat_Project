@@ -1,9 +1,9 @@
+CC=gcc
 client: chat_client.c
-	gcc -o client chat_client.c
+	$(CC) -o client -w chat_client.c -lpthread
 
 server: chat_server.c
-	gcc -o server chat_server.c
+	$(CC) -o server -w chat_server.c -lpthread
 
 clean:
-	rm -f client 
-	rm -f server 
+	rm -f client server 
