@@ -23,13 +23,29 @@ void report(const char* msg, int status) {
 void fileWrite(int isOpen) {
 	FILE *filep;
 	filep = fopen("chat_history", "w");
+	
+	//the following code gets the current time and formats it Day, Month, Year
 	time_t rawtime;
 	struct tm * timeinfo;
 	time ( &rawtime );
 	timeinfo = localtime ( &rawtime );
-	char message [560] = "Test Message";
+	
+	char message[500]; 
 	printf ( "%s %s", asctime (timeinfo), message );
 	fprintf(filep, message);
+
+	//code idea
+	//	in main, we use pthread_create() to call this function
+	//	the function then opens the file whenever it needs to write a comment
+	//	We use an int to check if the file has already been accessed so we can wipe the information
+	//	ex. int isOpen functions like a boolean saying whether the file has been opened, or if it needs to write over the past information
+	//	The file is locked using mutex??? while the program runs
+	//	The file closes untill the next comment is sent
+	//better code idea
+	//	the file is opened in main, and we use fprintf in the method to write messages into the file chat_history
+	//	-however, threads work with functions and we can't just make fprintf a method in issolation
+	//	--maybe we could make an inner class inside of main and it calls the inner class
+	//	--idk, this is all a thought
 }
 
 
