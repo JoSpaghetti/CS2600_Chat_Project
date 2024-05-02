@@ -19,6 +19,12 @@ void report(const char* msg, int status) {
 	exit(status);
 }
 
+void *print_message_func(void *ptr) {
+	char *message;
+	message = (char *)ptr;
+	printf("%s\n", message);
+}
+
 int main() {
 	/* network vs AF_LOCAL */
 	/* reliable, bidirectional, arbitrary payload size */
@@ -38,20 +44,22 @@ int main() {
 	}
 	
 	/* listen to the socket */
-	if (listen(fd, MaxConnects) < 0) /* listen for clients, up to MaxConnects */
+	if (listen(fd, MaxConnects) < 0) { /* listen for clients, up to MaxConnects */
 		report("listen", 1); /* terminate */
-	
+	}
+
 	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);
 
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
 		int len = sizeof(caddr); /* address length could change */
 		
-		int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /*accept blocks */
+		int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /* accept blocks */
 		if (client_fd < 0) {
 			report("accept", 0); /* don't terminate, though there's a problem */
 			continue;
 		}
-		// put the read/ write stuff from client
 	}
+	// try mutex stuff
+	return 0;
 }
