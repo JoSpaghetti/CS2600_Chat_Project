@@ -37,12 +37,29 @@ int main() {
   saddr.sin_addr.s_addr = ((struct in_addr*) hptr->h_addr_list[0])->s_addr;
   saddr.sin_port = htons(PortNumber);
   
-  //connects to the sever
+  //connects to the server
   if (connect(sockfd, (struct sockaddr*) &saddr, sizeof(saddr)) < 0) {
     //report("connect", 1);
     printf("connected\n");
   }
   
-  printf("Success\n");
+
+	// send message to server (start chatting)
+	char* line = NULL;
+	size_t lineSize = 0;
+	printf("Send message pls\n");
+	
+
+	while(1) {
+		ssize_t charCount = getline(&line, &lineSize, stdin);
+		if(charCount > 0) {
+			if(strcmp(line, "exit\n") == 0) {
+				break;
+			}
+		ssize_t messageSent = send(sockfd, line, charCount, 0);
+		}
+	}
+	
+	printf("Success\n");
   close(sockfd);
 }
