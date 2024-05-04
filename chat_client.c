@@ -9,6 +9,25 @@
 
 #define PortNumber 9876
 
+//Thread function that listens and prints the message from the server
+//TODO: Check if this works
+void *print_message(void *ptr) {
+  int *sockfd;
+  sockfd = (int *) ptr;
+  char msg[1024];
+  //while true, keep receiving messages from the server
+  while (1) {
+    int receive = recv(sockfd, msg, 1024, 0);
+    if (receive > 0) {
+      printf("%s", buffer);
+    } else {
+      break;
+    }
+    //makes msg empty again (i think)
+    memset(msg, 0, sizeof(msg)); 
+  }
+}
+
 int main() {
   //fd for the socket
   int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -42,13 +61,22 @@ int main() {
     //report("connect", 1);
     printf("connected\n");
   }
-  
+  	//Gets username from user
+  	//TODO: Maybe change this so that everytime you send a message, the username goes first
+  	//TODO: Example - Jairus: Hey guys its me Jairus
+  	char *username = NULL;
+	size_t usernameSize = 0;
+  	printf("Enter a username:");
+        ssize_t nameCount = getline(&username, &usernameSize, stdin);
 
 	// send message to server (start chatting)
 	char* line = NULL;
 	size_t lineSize = 0;
 	printf("Send message pls\n");
-	
+
+	//Create thread to receive messages
+	pthread_t thread;
+	pthread_create(&thread, NULL, print_message, (void *) sockfd);
 
 	while(1) {
 		ssize_t charCount = getline(&line, &lineSize, stdin);
@@ -56,10 +84,15 @@ int main() {
 			if(strcmp(line, "exit\n") == 0) {
 				break;
 			}
+		//sends username then message
+		ssize_t usernameSent = send(sockfd, username, nameCount, 0);
 		ssize_t messageSent = send(sockfd, line, charCount, 0);
+
 		}
 	}
-	
+
+	//Closes the thread
+	pthread_detach(thread);	
 	printf("Success\n");
   close(sockfd);
 }
