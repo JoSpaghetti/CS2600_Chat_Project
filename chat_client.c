@@ -7,7 +7,7 @@
 #include <netinet/tcp.h>
 #include <pthread.h>
 
-#define PortNumber 9876
+//define PortNumber 9876
 
 //Thread function that listens and prints the message from the server
 //TODO: Check if this works
@@ -28,7 +28,16 @@ void *print_message(void *ptr) {
   }
 }
 
-int main() {
+int main(int argc, char* argv) {
+  //Checks for correct aomunt of arguments
+  //TODO: Maybe also check if its an integer
+  if (argc != 2) {
+    printf("Invalid amount of arguments. MAke sure to include 1 portnumber");
+    return -1;
+  }
+
+  int PortNumber = atoi(argv[1]);
+
   //fd for the socket
   int sockfd = socket(AF_INET, SOCK_STREAM, 0);
   //if (sockfd < 0) report ("socket", 1);
@@ -92,7 +101,7 @@ int main() {
 	}
 
 	//Closes the thread
-	pthread_detach(thread);	
-	printf("Success\n");
+  pthread_detach(thread);
+  printf("Success\n");
   close(sockfd);
 }
