@@ -6,7 +6,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-
+#include <string.h>
 /* define things for network sockets */
 #define PortNumber 9876
 #define MaxConnects 8
@@ -25,10 +25,9 @@ int AppendChatHistory(void* buffer) {
 	char* text = (char *)buffer;
 	// open file and write to it
 	FILE* fp = fopen("chat_history", "a");
-	fprintf(fp, "%s\n", text);
-	printf("Written to logs");
-	// close file and free pointers
-	free(text);
+	fprintf(fp, "%s", text);
+	fprintf(stderr, "Written to logs");
+	// close file
 	fclose(fp);
 	pthread_exit(0);
 }
@@ -69,13 +68,20 @@ int main() {
 			report("accept", 0); /* don't terminate, though there's a problem */
 			continue;
 		}
-		
-		char* buffer = (char *)malloc(128 * sizeof(char));
-		recv(client_fd, buffer, sizeof(buffer), 0); // receive message from client
-		// make thread to write to file
-		pthread_create(&write_thread, NULL, (void *)AppendChatHistory, (void *)buffer);
-		printf("Response: %s\n", buffer);
-		pthread_join(write_thread, 0);
+		// listen for client and write to logs
+		while (1) {
+			char* buffer = (char *)malloc(1024 * sizeof(char));
+			recv(client_fd, buffer, sizeof(buffer), 0); // receive message from client
+			// make thread to write to file
+			pthread_create(&write_thread, NULL, (void *)AppendChatHistory, (void *)buffer);
+			printf("Response: %s\n", buffer);
+			pthread_join(write_thread, NULL);
+			if (strstr(buffer, "exit\n") == 0) {
+				break;
+			}
+			free(buffer);
+			
+		}
 	}
 	return 0;
 }
