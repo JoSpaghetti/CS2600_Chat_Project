@@ -45,13 +45,12 @@ int main() {
 
 	
 
+	printf("Send message pls\n");
+	char* line = NULL;
+	size_t lineSize = 0;
 	while(1) {
 		// send message to server (start chatting)
-		char* line = NULL;
-		size_t lineSize = 0;
-		printf("Send message pls\n");
 		ssize_t charCount = getline(&line, &lineSize, stdin);
-		
 		if(charCount > 0) {
 			if(strcmp(line, "exit\n") == 0) {
 				break;
@@ -60,6 +59,7 @@ int main() {
 		send(sockfd, line, charCount, 0);
 		printf("Your message: %s\n", line);
 		}
+		free(line);
 	}
 	
 	printf("Success\n");
