@@ -6,27 +6,27 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
-
+#include <stdlib.h>
 #define PortNumber 9876
+
+void report(const char* msg, int status) {
+	perror(msg);
+	exit(status);
+}
 
 int main() {
   //fd for the socket
   int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  //if (sockfd < 0) report ("socket", 1);
-  if (sockfd < 0) {
-    printf("Connected");
-  }
+  if (sockfd < 0) report ("socket", 1);
 
   //gets the address of the host
   struct hostent* hptr = gethostbyname("127.0.0.1");
   if (!hptr) {
-    //report ("gethostbyname", 1);
-    printf("gethostbyname");
+    report ("gethostbyname", 1);
   }
 
   if (hptr->h_addrtype != AF_INET) {
-    printf("bad address family");
-    //report("bad address family", 1);
+    report("bad address family", 1);
   }
 
   //connects to the server: configure server's address list
@@ -39,24 +39,26 @@ int main() {
   
   //connects to the server
   if (connect(sockfd, (struct sockaddr*) &saddr, sizeof(saddr)) < 0) {
-    //report("connect", 1);
-    printf("connected\n");
+    report("connect", 1);
   }
   
 
-	// send message to server (start chatting)
-	char* line = NULL;
-	size_t lineSize = 0;
-	printf("Send message pls\n");
 	
 
 	while(1) {
+		// send message to server (start chatting)
+		char* line = NULL;
+		size_t lineSize = 0;
+		printf("Send message pls\n");
 		ssize_t charCount = getline(&line, &lineSize, stdin);
+		
 		if(charCount > 0) {
 			if(strcmp(line, "exit\n") == 0) {
 				break;
 			}
-		ssize_t messageSent = send(sockfd, line, charCount, 0);
+		
+		send(sockfd, line, charCount, 0);
+		printf("Your message: %s\n", line);
 		}
 	}
 	

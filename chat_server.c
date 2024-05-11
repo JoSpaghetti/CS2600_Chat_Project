@@ -19,6 +19,20 @@ void report(const char* msg, int status) {
 	exit(status);
 }
 
+int AppendChatHistory(void* buffer) {
+	// add mutexes later
+	// initialize text
+	char* text = (char *)buffer;
+	// open file and write to it
+	FILE* fp = fopen("chat_history", "a");
+	fprintf(fp, "%s\n", text);
+	printf("Written to logs");
+	// close file and free pointers
+	free(text);
+	fclose(fp);
+	pthread_exit(0);
+}
+
 int main() {
 	/* network vs AF_LOCAL */
 	/* reliable, bidirectional, arbitrary payload size */
@@ -45,7 +59,7 @@ int main() {
 	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);
 	
 	// create thread for writing messages
-	//pthread_t write_thread;
+	pthread_t write_thread;
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
 		unsigned int len = sizeof(caddr); /* address length could change */
@@ -56,11 +70,12 @@ int main() {
 			continue;
 		}
 		
-		char buffer[1024];
-		recv(client_fd, buffer, 1024, 0); // receive message from client
-
+		char* buffer = (char *)malloc(128 * sizeof(char));
+		recv(client_fd, buffer, sizeof(buffer), 0); // receive message from client
+		// make thread to write to file
+		pthread_create(&write_thread, NULL, (void *)AppendChatHistory, (void *)buffer);
 		printf("Response: %s\n", buffer);
-		//pthread_create(&write_thread, NULL, );
+		pthread_join(write_thread, 0);
 	}
 	return 0;
 }
