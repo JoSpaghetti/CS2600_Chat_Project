@@ -14,13 +14,16 @@
 #define ConversationLen 3
 #define Host "localhost"
 
+pthread_mutex_t writing_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void report(const char* msg, int status) {
 	perror(msg);
 	exit(status);
 }
 
-int AppendChatHistory(void* buffer) {
+void *AppendChatHistory(void* buffer) {
 	// add mutexes later
+	pthread_mutex_lock(&writing_mutex);
 	// initialize text
 	char* text = (char *)buffer;
 	// open file and write to it
@@ -29,6 +32,7 @@ int AppendChatHistory(void* buffer) {
 	fprintf(stderr, "Written to logs");
 	// close file
 	fclose(fp);
+	pthread_mutex_unlock(&writing_mutex);
 	pthread_exit(0);
 }
 
@@ -37,6 +41,8 @@ int main() {
 	/* reliable, bidirectional, arbitrary payload size */
 	/* system picks underlying protocol (TCP) */
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	// create thread for writing messages
+	pthread_t write_thread;
 	/* terminate */
 	if (fd < 0) report("socket", 1);
 	
@@ -57,8 +63,6 @@ int main() {
 
 	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);
 	
-	// create thread for writing messages
-	pthread_t write_thread;
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
 		unsigned int len = sizeof(caddr); /* address length could change */
@@ -68,19 +72,18 @@ int main() {
 			report("accept", 0); /* don't terminate, though there's a problem */
 			continue;
 		}
+	
 		// listen for client and write to logs
-		while (1) {
-			char* buffer = (char *)malloc(1024 * sizeof(char));
-			recv(client_fd, buffer, sizeof(buffer), 0); // receive message from client
+		int result;
+		char* buffer = (char *)malloc(1024 * sizeof(char));
+		while(1) {
+			recv(client_fd, buffer, sizeof(buffer), 0);
+			printf("Received: %s", buffer);
 			// make thread to write to file
-			pthread_create(&write_thread, NULL, (void *)AppendChatHistory, (void *)buffer);
-			printf("Response: %s\n", buffer);
-			pthread_join(write_thread, NULL);
-			if (strstr(buffer, "exit\n") == 0) {
-				break;
+			if ((result = pthread_create(&write_thread, NULL, AppendChatHistory, (void *)buffer) != 0)) {
+				printf("Thread creation failed %d\n", result);
 			}
-			free(buffer);
-			
+			pthread_join(write_thread, NULL);
 		}
 	}
 	return 0;
