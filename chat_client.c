@@ -41,9 +41,6 @@ int main() {
   if (connect(sockfd, (struct sockaddr*) &saddr, sizeof(saddr)) < 0) {
     report("connect", 1);
   }
-  
-
-	
 
 	printf("Send message pls\n");
 	char* line = NULL;
@@ -55,11 +52,8 @@ int main() {
 			if(strcmp(line, "exit\n") == 0) {
 				break;
 			}
-		
 		send(sockfd, line, charCount, 0);
-		printf("Your message: %s\n", line);
 		}
-		free(line);
 	}
 	
 	printf("Success\n");
