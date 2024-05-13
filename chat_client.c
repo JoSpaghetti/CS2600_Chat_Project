@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
   printf("Send message pls\n");
         
   //Username and message
-  char totalMsg[256];
+  char totalMsg[1024];
   char colon[] = ": ";
   int cont = 1;
   while(cont > 0) {
