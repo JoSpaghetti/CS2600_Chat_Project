@@ -6,40 +6,50 @@
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 //define PortNumber 9876
 
+int sockfd = 0;
+
+//Checks to see if thread is working 1 means it is
+int threadWorking = 1;
+
 //Thread function that listens and prints the message from the server
-//TODO: Check if this works
-void *print_message(void *ptr) {
-  int *sockfd;
-  sockfd = (int *) ptr;
+void print_message() {
   char msg[1024];
   //while true, keep receiving messages from the server
   while (1) {
     int receive = recv(sockfd, msg, 1024, 0);
     if (receive > 0) {
-      printf("%s", buffer);
+      //printf("Server said:\n");
+      printf("%s", msg);
     } else {
+      printf("Something went wrong with the message\n");
       break;
     }
     //makes msg empty again (i think)
     memset(msg, 0, sizeof(msg)); 
+    if (threadWorking < 0) { //If they exited out, break out of the loop and exit
+      break;
+    }
   }
+  //printf("Thread closed\n");
+  pthread_exit(1);
 }
 
-int main(int argc, char* argv) {
+int main(int argc, char* argv[]) {
   //Checks for correct aomunt of arguments
   //TODO: Maybe also check if its an integer
   if (argc != 2) {
-    printf("Invalid amount of arguments. MAke sure to include 1 portnumber");
+    printf("Invalid amount of arguments. Make sure to include 1 portnumber");
     return -1;
   }
 
-  int PortNumber = atoi(argv[1]);
-
+  int portNumber = atoi(argv[1]);
+  //printf("%d", portNumber);
   //fd for the socket
-  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
   //if (sockfd < 0) report ("socket", 1);
   if (sockfd < 0) {
     printf("Connected");
@@ -63,45 +73,54 @@ int main(int argc, char* argv) {
   saddr.sin_family = AF_INET;
   saddr.sin_addr.s_addr = AF_INET;
   saddr.sin_addr.s_addr = ((struct in_addr*) hptr->h_addr_list[0])->s_addr;
-  saddr.sin_port = htons(PortNumber);
+  saddr.sin_port = htons(portNumber);
+  
+  pthread_t msgRecv;
+  pthread_create(&msgRecv, NULL, print_message, NULL);
   
   //connects to the server
   if (connect(sockfd, (struct sockaddr*) &saddr, sizeof(saddr)) < 0) {
     //report("connect", 1);
-    printf("connected\n");
+    printf("not connected\n");
   }
-  	//Gets username from user
-  	//TODO: Maybe change this so that everytime you send a message, the username goes first
-  	//TODO: Example - Jairus: Hey guys its me Jairus
-  	char *username = NULL;
-	size_t usernameSize = 0;
-  	printf("Enter a username:");
-        ssize_t nameCount = getline(&username, &usernameSize, stdin);
 
-	// send message to server (start chatting)
-	char* line = NULL;
-	size_t lineSize = 0;
-	printf("Send message pls\n");
-
-	//Create thread to receive messages
-	pthread_t thread;
-	pthread_create(&thread, NULL, print_message, (void *) sockfd);
-
-	while(1) {
-		ssize_t charCount = getline(&line, &lineSize, stdin);
-		if(charCount > 0) {
-			if(strcmp(line, "exit\n") == 0) {
-				break;
-			}
-		//sends username then message
-		ssize_t usernameSent = send(sockfd, username, nameCount, 0);
-		ssize_t messageSent = send(sockfd, line, charCount, 0);
-
-		}
-	}
-
-	//Closes the thread
-  pthread_detach(thread);
+  //Gets username from user
+  char username[25];
+  size_t usernameSize = 0;
+  printf("Enter a username: ");
+  fgets(username, 25, stdin);
+  username[strcspn(username, "\n")] = '\0';
+  //printf("%s", username);
+	  
+  // send message to server (start chatting)
+  char* line = NULL;
+  size_t lineSize = 0;
+  printf("Send message pls\n");
+        
+  //Username and message
+  char totalMsg[256];
+  char colon[] = ": ";
+  int cont = 1;
+  while(cont > 0) {
+    ssize_t charCount = getline(&line, &lineSize, stdin);
+    if(charCount > 0) {
+      if(strcmp(line, "exit\n") == 0) {
+        cont = -1;		
+      }
+      //Cats username to the msg
+      strcat(totalMsg, username);
+      strcat(totalMsg, colon);
+      strcat(totalMsg, line);
+      ssize_t newCharCount = sizeof(totalMsg);
+      ssize_t messageSent = send(sockfd, totalMsg, newCharCount, 0);
+      //ssize_t messageSent = send(sockfd, line, charCount, 0);
+      memset(totalMsg, '\0', sizeof(totalMsg));
+      charCount = 0;
+    }
+  }
+  //Since done, close the thread
+  threadWorking = -1;
+  pthread_join(msgRecv, NULL);
   printf("Success\n");
   close(sockfd);
 }
