@@ -41,19 +41,24 @@ int main() {
   if (connect(sockfd, (struct sockaddr*) &saddr, sizeof(saddr)) < 0) {
     report("connect", 1);
   }
-
-	printf("Send message pls\n");
-	char* line = NULL;
-	size_t lineSize = 0;
+	
+	printf("Connected to server\nStart chatting:\n");
+	size_t bufferSize = 0;
 	while(1) {
 		// send message to server (start chatting)
-		ssize_t charCount = getline(&line, &lineSize, stdin);
-		if(charCount > 0) {
-			if(strcmp(line, "exit\n") == 0) {
+		char* buffer = (char *)malloc(128 * sizeof(char));
+		getline(&buffer, &bufferSize, stdin);
+		printf("You sent: %s", buffer); // not printing?
+		send(sockfd, buffer, sizeof(buffer), 0);
+		if(strcmp(buffer, "exit\n") == 0) {
 				break;
-			}
-		send(sockfd, line, charCount, 0);
 		}
+		// receive message from other clients (work in progress)
+		int count = recv(sockfd, buffer, sizeof(buffer), 0);
+		if (count > 0) {
+			puts(buffer);
+		}
+		free(buffer);
 	}
 	
 	printf("Success\n");
