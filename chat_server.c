@@ -29,7 +29,6 @@ void *AppendChatHistory(void* buffer) {
 	// open file and write to it
 	FILE* fp = fopen("chat_history", "a");
 	fprintf(fp, "%s", text);
-	fprintf(stderr, "Written to logs");
 	// close file
 	fclose(fp);
 	pthread_mutex_unlock(&writing_mutex);
@@ -75,16 +74,23 @@ int main() {
 	
 		// listen for client and write to logs
 		int result;
-		char* buffer = (char *)malloc(1024 * sizeof(char));
 		while(1) {
-			recv(client_fd, buffer, sizeof(buffer), 0);
-			printf("Received: %s", buffer);
+			char *buffer = (char*)malloc(128 * sizeof(char));
+			int count = recv(client_fd, buffer, sizeof(buffer), 0);
+			if (count > 0) {
+				puts(buffer);
+				send(client_fd, buffer, sizeof(buffer), 0);
+			} else {
+				break;
+			}
 			// make thread to write to file
 			if ((result = pthread_create(&write_thread, NULL, AppendChatHistory, (void *)buffer) != 0)) {
 				printf("Thread creation failed %d\n", result);
 			}
 			pthread_join(write_thread, NULL);
+			free(buffer);
 		}
+		close(client_fd);
 	}
 	return 0;
 }
