@@ -7,6 +7,7 @@
 #include <netinet/tcp.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <errno.h>
 
 //define PortNumber 9876
 
@@ -16,7 +17,7 @@ int sockfd = 0;
 int threadWorking = 1;
 
 //Thread function that listens and prints the message from the server
-void print_message() {
+void* print_message() {
   char msg[1024];
   //while true, keep receiving messages from the server
   while (1) {
@@ -35,7 +36,12 @@ void print_message() {
     }
   }
   //printf("Thread closed\n");
-  pthread_exit(1);
+  pthread_exit("1");
+}
+
+void report(char* message, int status) {
+  printf(message);
+  exit(status);
 }
 
 int main(int argc, char* argv[]) {
@@ -52,19 +58,19 @@ int main(int argc, char* argv[]) {
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
   //if (sockfd < 0) report ("socket", 1);
   if (sockfd < 0) {
-    printf("Connected");
+    report("Connected", 0);
   }
 
   //gets the address of the host
   struct hostent* hptr = gethostbyname("127.0.0.1");
   if (!hptr) {
-    //report ("gethostbyname", 1);
-    printf("gethostbyname");
+    report ("gethostbyname", 1);
+    //printf("gethostbyname");
   }
 
   if (hptr->h_addrtype != AF_INET) {
-    printf("bad address family");
-    //report("bad address family", 1);
+    //printf("bad address family");
+    report("bad address family", 1);
   }
 
   //connects to the server: configure server's address list
@@ -86,7 +92,7 @@ int main(int argc, char* argv[]) {
 
   //Gets username from user
   char username[25];
-  size_t usernameSize = 0;
+  //size_t usernameSize = 0;
   printf("Enter a username: ");
   fgets(username, 25, stdin);
   username[strcspn(username, "\n")] = '\0';
@@ -101,8 +107,11 @@ int main(int argc, char* argv[]) {
   char totalMsg[1024];
   char colon[] = ": ";
   int cont = 1;
+  memset(totalMsg, '\0', sizeof(totalMsg));
+
   while(cont > 0) {
     ssize_t charCount = getline(&line, &lineSize, stdin);
+    //printf("%s", line);
     if(charCount > 0) {
       if(strcmp(line, "exit\n") == 0) {
         cont = -1;		
@@ -112,7 +121,7 @@ int main(int argc, char* argv[]) {
       strcat(totalMsg, colon);
       strcat(totalMsg, line);
       ssize_t newCharCount = sizeof(totalMsg);
-      ssize_t messageSent = send(sockfd, totalMsg, newCharCount, 0);
+      send(sockfd, totalMsg, newCharCount, 0);
       //ssize_t messageSent = send(sockfd, line, charCount, 0);
       memset(totalMsg, '\0', sizeof(totalMsg));
       charCount = 0;
