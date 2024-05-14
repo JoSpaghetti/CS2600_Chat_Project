@@ -15,6 +15,8 @@
 #define Host "localhost"
 
 pthread_mutex_t writing_mutex = PTHREAD_MUTEX_INITIALIZER;
+int clients[MaxConnects];
+char buffer[1024];
 
 void report(const char* msg, int status) {
 	perror(msg);
@@ -35,6 +37,31 @@ void *AppendChatHistory(void* buffer) {
 	pthread_exit(0);
 }
 
+void *ReadClient(void * cli) {
+	int *client = (int *) cli;
+	memset(buffer, '\0', sizeof(buffer));
+	int count = recv(*client, buffer, sizeof(buffer), 0);
+	if (count > 0) {
+		puts(buffer);
+		for (int i = 0; i < sizeof(clients); i++) {
+			if (clients[i] != *client) {	
+				send(clients[i], buffer, sizeof(buffer), 0);
+			}
+		}
+	}
+	pthread_exit(buffer);
+}
+
+void addClient(int client) {
+	printf("Adding client\n");
+	for(int i = 0; i < MaxConnects; i++){
+		if(!clients[i]){
+			clients[i] = client;
+			break;
+		}
+	}
+}
+
 int main() {
 	/* network vs AF_LOCAL */
 	/* reliable, bidirectional, arbitrary payload size */
@@ -42,9 +69,7 @@ int main() {
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	// create thread for writing messages
 	pthread_t write_thread;
-	// multiple clients
-	//int client_fds = [];
-	//int client_count = 0;
+	pthread_t read_thread;	
 	/* terminate */
 	if (fd < 0) report("socket", 1);
 	
@@ -68,38 +93,29 @@ int main() {
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
 		unsigned int len = sizeof(caddr); /* address length could change */
-		
 		int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /* accept blocks */
 		if (client_fd < 0) {
 			report("accept", 0); /* don't terminate, though there's a problem */
 			continue;
 		}
-		/*
-		if (client_count + 1 > MaxConnects) {
+
+		if (clients[2]) {
 			report("Max numbers of clients reached\nTry again later.", 1);
 		} else {
-			client_count++;
-		}*/
-		
-		// listen for client and write to logs
-		int result;
-		while(1) {
-			char buffer[1024];
-			memset(buffer, '\0', sizeof(buffer));
-			int count = recv(client_fd, buffer, sizeof(buffer), 0);
-			if (count > 0) {
-				puts(buffer);
-				send(client_fd, buffer, sizeof(buffer), 0);
-			} else {
-				break;
-			}
-			// make thread to write to file
-			if ((result = pthread_create(&write_thread, NULL, AppendChatHistory, (void *)buffer) != 0)) {
-				printf("Thread creation failed %d\n", result);
-			}
-			pthread_join(write_thread, NULL);
+			addClient(client_fd);
+			// listen for client messages and write to logs
+			pthread_create(&read_thread, NULL, ReadClient, (void *) &client_fd);
+			pthread_join(read_thread, NULL);
 		}
-		close(client_fd);
+		
+		// make thread to write to file
+		if (pthread_create(&write_thread, NULL, AppendChatHistory, (void *)buffer) != 0) {
+			printf("Thread creation failed\n");
+		}
+		pthread_join(write_thread, NULL);
+	}
+	for(int i = 0; i < MaxConnects; i++) {
+		close(clients[i]);
 	}
 	return 0;
 }
