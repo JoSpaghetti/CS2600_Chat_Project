@@ -7,11 +7,11 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <string.h>
+
 /* define things for network sockets */
 #define PortNumber 9876
-#define MaxConnects 8
+#define MaxConnects 3
 #define BuffSize 256
-#define ConversationLen 3
 #define Host "localhost"
 
 pthread_mutex_t writing_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -42,6 +42,9 @@ int main() {
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	// create thread for writing messages
 	pthread_t write_thread;
+	// multiple clients
+	//int client_fds = [];
+	//int client_count = 0;
 	/* terminate */
 	if (fd < 0) report("socket", 1);
 	
@@ -60,8 +63,8 @@ int main() {
 		report("listen", 1); /* terminate */
 	}
 
-	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);
-	
+	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);	
+
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
 		unsigned int len = sizeof(caddr); /* address length could change */
@@ -71,7 +74,13 @@ int main() {
 			report("accept", 0); /* don't terminate, though there's a problem */
 			continue;
 		}
-	
+		/*
+		if (client_count + 1 > MaxConnects) {
+			report("Max numbers of clients reached\nTry again later.", 1);
+		} else {
+			client_count++;
+		}*/
+		
 		// listen for client and write to logs
 		int result;
 		while(1) {
