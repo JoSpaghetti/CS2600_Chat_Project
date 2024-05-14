@@ -84,7 +84,8 @@ int main() {
 		// listen for client and write to logs
 		int result;
 		while(1) {
-			char *buffer = (char*)malloc(128 * sizeof(char));
+			char buffer[1024];
+			memset(buffer, '\0', sizeof(buffer));
 			int count = recv(client_fd, buffer, sizeof(buffer), 0);
 			if (count > 0) {
 				puts(buffer);
@@ -97,7 +98,6 @@ int main() {
 				printf("Thread creation failed %d\n", result);
 			}
 			pthread_join(write_thread, NULL);
-			free(buffer);
 		}
 		close(client_fd);
 	}
