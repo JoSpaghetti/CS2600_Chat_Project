@@ -52,14 +52,22 @@ void *ReadClient(void * cli) {
 	pthread_exit(buffer);
 }
 
-void addClient(int client) {
+void* addClient(void * fd) {
+	int *temp_fd = (int *) fd;
+	struct sockaddr_in caddr; /* client address */
+	unsigned int len = sizeof(caddr); /* address length could change */
+	int client_fd = accept(*temp_fd, (struct sockaddr*) &caddr, &len); /* accept blocks */
+	if (client_fd < 0) {
+		report("accept", 0); /* don't terminate, though there's a problem */
+	}
 	printf("Adding client\n");
 	for(int i = 0; i < MaxConnects; i++){
 		if(!clients[i]){
-			clients[i] = client;
+			clients[i] = client_fd;
 			break;
 		}
 	}
+	pthread_exit(&client_fd);
 }
 
 int main() {
@@ -91,20 +99,24 @@ int main() {
 	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);	
 
 	while (1) {
-		struct sockaddr_in caddr; /* client address */
-		unsigned int len = sizeof(caddr); /* address length could change */
-		int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /* accept blocks */
-		if (client_fd < 0) {
-			report("accept", 0); /* don't terminate, though there's a problem */
-			continue;
-		}
-
+		//struct sockaddr_in caddr; /* client address */
+		//unsigned int len = sizeof(caddr); /* address length could change */
+		//int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /* accept blocks */
+		//if (client_fd < 0) {
+			//report("accept", 0); /* don't terminate, though there's a problem */
+			//continue;
+		//}
+		void ** client;
+		pthread_t addThread;
+		pthread_create(&addThread, NULL, addClient, (void *) &fd);
+		pthread_join(addThread, client);
 		if (clients[2]) {
 			report("Max numbers of clients reached\nTry again later.", 1);
 		} else {
-			addClient(client_fd);
+			printf("%d", *(int *) *client);
+			addClient(*client);
 			// listen for client messages and write to logs
-			pthread_create(&read_thread, NULL, ReadClient, (void *) &client_fd);
+			pthread_create(&read_thread, NULL, ReadClient, (void *) &client);
 			pthread_join(read_thread, NULL);
 		}
 		
