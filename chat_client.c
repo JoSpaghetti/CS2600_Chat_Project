@@ -114,7 +114,9 @@ int main(int argc, char* argv[]) {
     //printf("%s", line);
     if(charCount > 0) {
       if(strcmp(line, "exit\n") == 0) {
-        cont = -1;		
+        send(sockfd, line, charCount, 0);
+	cont = -1;
+	break;		
       }
       //Cats username to the msg
       strcat(totalMsg, username);
