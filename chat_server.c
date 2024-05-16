@@ -22,11 +22,11 @@ void report(const char* msg, int status) {
 	exit(status);
 }
 
-void *AppendChatHistory(void* buffer) {
+void *AppendChatHistory() {
 	// add mutexes later
 	pthread_mutex_lock(&writing_mutex);
 	// initialize text
-	char* text = (char *)buffer;
+	char* text = buffer;
 	// open file and write to it
 	FILE* fp = fopen("chat_history", "a");
 	fprintf(fp, "%s", text);
@@ -36,21 +36,18 @@ void *AppendChatHistory(void* buffer) {
 	pthread_exit(0);
 }
 
-void *ReadClient(void * client_fd) {
-	int *client = (int *)client_fd;
-	while(1) {
-		memset(buffer, '\0', sizeof(buffer));
-		int count = recv(*client, buffer, sizeof(buffer), 0);
-		if (count > 0) {
-			puts(buffer);
-			for (int i = 0; i < sizeof(clients); i++) {
-				if (clients[i] != *client) {	
-					send(clients[i], buffer, sizeof(buffer), 0);
-				}
+void *ReadClient() {
+	memset(buffer, '\0', sizeof(buffer));
+	int count = recv(clients[j], buffer, sizeof(buffer), 0);
+	if (count > 0) {
+		puts(buffer);
+		for (int i = 0; i < sizeof(clients); i++) {
+			if (clients[i] != clients[j]) {	
+				send(clients[i], buffer, sizeof(buffer), 0);
 			}
 		}
 	}
-	pthread_exit(buffer);
+	pthread_exit(0);
 }
 
 void addClient(int client) {
@@ -79,7 +76,6 @@ int main() {
 	// create thread for writing messages
 	pthread_t write_thread;
 	pthread_t read_thread;	
-	char * message;
 	/* terminate */
 	if (fd < 0) report("socket", 1);
 	
@@ -117,15 +113,16 @@ int main() {
 		}
 		
 		// listen for client messages and write to logs
-		pthread_create(&read_thread, NULL, ReadClient, (void *) &client_fd);
-		pthread_join(read_thread, (void **) message);
-		
+		pthread_create(&read_thread, NULL, ReadClient, NULL);
+		pthread_join(read_thread, NULL);
+		printf("Message:\n%s", buffer);
 		// make thread to write to file
-		if (pthread_create(&write_thread, NULL, AppendChatHistory, (void *) message) != 0) {
+		if (pthread_create(&write_thread, NULL, AppendChatHistory, NULL) != 0) {
 			printf("Thread creation failed\n");
 		}
-		pthread_join(write_thread, NULL);
+		pthread_join(write_thread, NULL);	
 	}
+
 	for(int i = 0; i < MaxConnects; i++) {
 		close(clients[i]);
 	}
