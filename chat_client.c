@@ -107,15 +107,20 @@ int main(int argc, char* argv[]) {
   char totalMsg[1024];
   char colon[] = ": ";
   int cont = 1;
-  memset(totalMsg, '\0', sizeof(totalMsg));
+  //memset(totalMsg, '\0', sizeof(totalMsg));
 
   while(cont > 0) {
+    memset(totalMsg, '\0', sizeof(totalMsg));
     ssize_t charCount = getline(&line, &lineSize, stdin);
-    //printf("%s", line);
+    //printf("You sent: %s\n", line);
+    //printf("strcmp: %d\n", strcmp(line, "exit\n"));
+    //printf("charCount: %zd\n", charCount);
     if(charCount > 0) {
-      if(strcmp(line, "exit\n") == 0) {
-        send(sockfd, line, charCount, 0);
-	cont = -1;
+      if((strcmp(line, "exit\n")) == 0) {
+        //send(sockfd, line, charCount, 0);
+        //printf("Breaking out");
+        pthread_cancel(msgRecv);
+	//cont = -1;
 	break;		
       }
       //Cats username to the msg
@@ -124,14 +129,18 @@ int main(int argc, char* argv[]) {
       strcat(totalMsg, line);
       ssize_t newCharCount = sizeof(totalMsg);
       send(sockfd, totalMsg, newCharCount, 0);
+      //printf("%s", totalMsg);
       //ssize_t messageSent = send(sockfd, line, charCount, 0);
-      memset(totalMsg, '\0', sizeof(totalMsg));
+      //memset(totalMsg, '\0', sizeof(totalMsg));
       charCount = 0;
     }
   }
+
+  //printf("Exited");
   //Since done, close the thread
   threadWorking = -1;
-  pthread_join(msgRecv, NULL);
+  //pthread_join(msgRecv, NULL);
   printf("Success\n");
   close(sockfd);
+  return 0;
 }
