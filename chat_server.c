@@ -36,13 +36,14 @@ void *AppendChatHistory() {
 	pthread_exit(0);
 }
 
-void *ReadClient() {
+void *ReadClient(void * client) {
+	int *client_fd = (int *)client;
 	memset(buffer, '\0', sizeof(buffer));
-	int count = recv(clients[j], buffer, sizeof(buffer), 0);
+	int count = recv(*client_fd, buffer, sizeof(buffer), 0);
 	if (count > 0) {
 		puts(buffer);
 		for (int i = 0; i < sizeof(clients); i++) {
-			if (clients[i] != clients[j]) {	
+			if (clients[i] != *client_fd) {	
 				send(clients[i], buffer, sizeof(buffer), 0);
 			}
 		}
@@ -50,22 +51,28 @@ void *ReadClient() {
 	pthread_exit(0);
 }
 
-void addClient(int client) {
+int addClient(int client) {
 	int isThere = 0;
+	int index = 0;
 	for(int j = 0; j < MaxConnects; j++) {
-		if(clients[j] == client) {
+		if (send(clients[j], "you there?", 10, 0) != 0) {
+			clients[j] = 0;
+			printf("removed client %d", j);
+		}
+		if (clients[j] == client) {
 			isThere = 1;
-			break;
 		}	
 	}
 	if (isThere == 0) {
 		for(int i = 0; i < MaxConnects; i++) {
 			if(!clients[i]){
 				clients[i] = client;
+				index = i;
 				break;
 			}
 		}
 	}
+	return index;
 }
 
 int main() {
@@ -73,9 +80,10 @@ int main() {
 	/* reliable, bidirectional, arbitrary payload size */
 	/* system picks underlying protocol (TCP) */
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	int index = 0;
 	// create thread for writing messages
 	pthread_t write_thread;
-	pthread_t read_thread;	
+	pthread_t read_threads[MaxConnects];	
 	/* terminate */
 	if (fd < 0) report("socket", 1);
 	
@@ -107,20 +115,22 @@ int main() {
 
 		if (clients[MaxConnects-1]) {
 			report("Max numbers of clients reached\nTry again later.", 1);
-		} else {
-			addClient(client_fd);
-			printf("Added client\n");
-		}
+		} 
+
+		index = addClient(client_fd);
+		printf("Added client\n");
 		
-		// listen for client messages and write to logs
-		pthread_create(&read_thread, NULL, ReadClient, NULL);
-		pthread_join(read_thread, NULL);
-		printf("Message:\n%s", buffer);
-		// make thread to write to file
-		if (pthread_create(&write_thread, NULL, AppendChatHistory, NULL) != 0) {
-			printf("Thread creation failed\n");
-		}
-		pthread_join(write_thread, NULL);	
+		//while(1) {
+			// listen for client messages and write to logs
+			pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
+			pthread_join(read_threads[index], NULL);
+			printf("Message:\n%s", buffer);
+			// make thread to write to file
+			if (pthread_create(&write_thread, NULL, AppendChatHistory, NULL) != 0) {
+				printf("Thread creation failed\n");
+			}
+			pthread_join(write_thread, NULL);
+		//}	
 	}
 
 	for(int i = 0; i < MaxConnects; i++) {
