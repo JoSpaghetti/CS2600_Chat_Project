@@ -6,54 +6,85 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#include <time.h>
+#include <string.h>
 
 /* define things for network sockets */
-#define PortNumber 9876
-#define MaxConnects 8
-#define BuffSize 256
-#define ConversationLen 3
+#define PortNumber 7029
+#define MaxConnects 7
 #define Host "localhost"
+
+pthread_mutex_t writing_mutex = PTHREAD_MUTEX_INITIALIZER;
+int clients[MaxConnects];
+char buffer[1024];
 
 void report(const char* msg, int status) {
 	perror(msg);
 	exit(status);
 }
 
-void fileWrite(int isOpen) {
-	FILE *filep;
-	filep = fopen("chat_history", "w");
-	
-	//the following code gets the current time and formats it Day, Month, Year
-	time_t rawtime;
-	struct tm * timeinfo;
-	time ( &rawtime );
-	timeinfo = localtime ( &rawtime );
-	
-	char message[500]; 
-	printf ( "%s %s", asctime (timeinfo), message );
-	fprintf(filep, message);
-
-	//code idea
-	//	in main, we use pthread_create() to call this function
-	//	the function then opens the file whenever it needs to write a comment
-	//	We use an int to check if the file has already been accessed so we can wipe the information
-	//	ex. int isOpen functions like a boolean saying whether the file has been opened, or if it needs to write over the past information
-	//	The file is locked using mutex??? while the program runs
-	//	The file closes untill the next comment is sent
-	//better code idea
-	//	the file is opened in main, and we use fprintf in the method to write messages into the file chat_history
-	//	-however, threads work with functions and we can't just make fprintf a method in issolation
-	//	--maybe we could make an inner class inside of main and it calls the inner class
-	//	--idk, this is all a thought
+void *ReadClient(void * client) {
+	int *client_fd = (int *)client;
+	while(1) {
+		memset(buffer, '\0', sizeof(buffer));
+		int count = recv(*client_fd, buffer, sizeof(buffer), 0);
+		if (count > 0) {
+			puts(buffer);
+			// begin writing to file
+			pthread_mutex_lock(&writing_mutex);
+			// initialize text
+			char* text = buffer;
+			// open file and write to it
+			FILE* fp = fopen("chat_history", "a");
+			fprintf(fp, "%s", text);
+			// close file
+			fclose(fp);
+			pthread_mutex_unlock(&writing_mutex);
+			
+			//send to other clients
+			for (int i = 0; i < MaxConnects; i++) {
+				printf("Finding client %d, %d\n", i, clients[i]);
+				if (clients[i] != *client_fd) {	
+					printf("sent to: %d\n", clients[i]);
+					send(clients[i], buffer, sizeof(buffer), 0);
+				}
+			}
+		}
+		// close the client?
+		close(*client_fd);
+	}
+	pthread_exit(0);
 }
 
+// initialize client array
+int addClient(int client) {
+	int isThere = 0;
+	int index = 0;
+	for(int j = 0; j < MaxConnects; j++) {
+		if (clients[j] == client) {
+			isThere = 1;
+		}	
+	}
+	if (isThere == 0) {
+		for(int i = 0; i < MaxConnects; i++) {
+			if(!clients[i]){
+				clients[i] = client;
+				index = i;
+				break;
+			}
+		}
+	}
+	return index;
+}
 
 int main() {
 	/* network vs AF_LOCAL */
 	/* reliable, bidirectional, arbitrary payload size */
 	/* system picks underlying protocol (TCP) */
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	int index = 0;
+	// create thread for writing messages
+	//pthread_t write_thread;
+	pthread_t read_threads[MaxConnects];	
 	/* terminate */
 	if (fd < 0) report("socket", 1);
 	
@@ -69,21 +100,29 @@ int main() {
 	
 	/* listen to the socket */
 	if (listen(fd, MaxConnects) < 0) { /* listen for clients, up to MaxConnects */
-		report("listen", 1);	/* terminate */
+		report("listen", 1); /* terminate */
 	}
-	
-	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);
-	fileWrite();
+
+	fprintf(stderr, "Listening on port %i for clients...\n", PortNumber);	
+
 	while (1) {
 		struct sockaddr_in caddr; /* client address */
-		int len = sizeof(caddr); /* address length could change */
-		
-		int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /*accept blocks */
+		unsigned int len = sizeof(caddr); /* address length could change */
+		int client_fd = accept(fd, (struct sockaddr*) &caddr, &len); /* accept blocks */
 		if (client_fd < 0) {
 			report("accept", 0); /* don't terminate, though there's a problem */
 			continue;
 		}
-		// put the read/ write stuff from client
+
+		if (clients[MaxConnects-1]) {
+			report("Max numbers of clients reached\nTry again later.", 1);
+		} 
+
+		index = addClient(client_fd);
+		printf("Added client: %d at index %d\n", client_fd, index);
+		
+		// listen for client messages and write to logs
+		pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
 	}
-	
+	return 0;
 }
