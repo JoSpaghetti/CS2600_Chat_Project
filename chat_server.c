@@ -40,10 +40,21 @@ void *ReadClient(void * client) {
 	int *client_fd = (int *)client;
 	memset(buffer, '\0', sizeof(buffer));
 	int count = recv(*client_fd, buffer, sizeof(buffer), 0);
+	/*for (int i = 0; i < MaxConnects; i++) {
+		if (recv(*client_fd, buffer, sizeof(buffer), 0) > 0) {
+			printf("Finding client %d, %d\n", i, clients[i]);
+			if (clients[i] != *client_fd && clients[i] > 0) {	
+				printf("sent to: %d\n", clients[i]);
+				send(clients[i], buffer, sizeof(buffer), 0);
+			}
+		}
+	}*/
 	if (count > 0) {
 		puts(buffer);
-		for (int i = 0; i < sizeof(clients); i++) {
-			if (clients[i] != *client_fd) {	
+		for (int i = 0; i < MaxConnects; i++) {
+			printf("Finding client %d, %d\n", i, clients[i]);
+			if (clients[i] != *client_fd && clients[i] > 0) {	
+				printf("sent to: %d\n", clients[i]);
 				send(clients[i], buffer, sizeof(buffer), 0);
 			}
 		}
@@ -55,10 +66,10 @@ int addClient(int client) {
 	int isThere = 0;
 	int index = 0;
 	for(int j = 0; j < MaxConnects; j++) {
-		if (send(clients[j], "you there?", 10, 0) != 0) {
+		/*if (send(clients[j], "you there?", 10, 0) == 0) {
 			clients[j] = 0;
-			printf("removed client %d", j);
-		}
+			printf("removed client %d\n", j);
+		}*/
 		if (clients[j] == client) {
 			isThere = 1;
 		}	
@@ -118,18 +129,18 @@ int main() {
 		} 
 
 		index = addClient(client_fd);
-		printf("Added client\n");
+		printf("Added client: %d\n", client_fd);
 		
 		//while(1) {
-			// listen for client messages and write to logs
-			pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
-			pthread_join(read_threads[index], NULL);
-			printf("Message:\n%s", buffer);
-			// make thread to write to file
-			if (pthread_create(&write_thread, NULL, AppendChatHistory, NULL) != 0) {
-				printf("Thread creation failed\n");
-			}
-			pthread_join(write_thread, NULL);
+		// listen for client messages and write to logs
+		pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
+		//pthread_create(&read_threads[index], NULL, ReadClient, NULL);
+		//pthread_join(read_threads[index], NULL);
+		// make thread to write to file
+		if (pthread_create(&write_thread, NULL, AppendChatHistory, NULL) != 0) {
+			printf("Thread creation failed\n");
+		}
+		pthread_join(write_thread, NULL);
 		//}	
 	}
 
