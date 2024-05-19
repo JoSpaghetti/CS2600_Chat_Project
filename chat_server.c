@@ -119,13 +119,10 @@ int main() {
 		} 
 
 		index = addClient(client_fd);
-		printf("Added client: %d\n", client_fd);
+		printf("Added client: %d at index %d\n", client_fd, index);
 		
 		// listen for client messages and write to logs
-		for (int i = 0; i < MaxConnects; i++) {
-			pthread_create(&read_threads[i], NULL, ReadClient, (void *) &clients[i]);
-		}
-		//pthread_creaate(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
+		pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
 	}
 	return 0;
 }
