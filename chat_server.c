@@ -9,7 +9,7 @@
 #include <string.h>
 
 /* define things for network sockets */
-#define PortNumber 2078
+#define PortNumber 7029
 #define MaxConnects 7
 #define Host "localhost"
 
