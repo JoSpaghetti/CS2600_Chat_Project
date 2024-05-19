@@ -15,6 +15,7 @@
 
 pthread_mutex_t writing_mutex = PTHREAD_MUTEX_INITIALIZER;
 int clients[MaxConnects];
+int numOfCli;
 char buffer[1024];
 
 void report(const char* msg, int status) {
@@ -24,33 +25,46 @@ void report(const char* msg, int status) {
 
 void *ReadClient(void * client) {
 	int *client_fd = (int *)client;
+	clients[numOfCli] = client_fd;
+	++numOfCli;
+
 	while(1) {
 		memset(buffer, '\0', sizeof(buffer));
 		int count = recv(*client_fd, buffer, sizeof(buffer), 0);
 		if (count > 0) {
-			puts(buffer);
-			// begin writing to file
-			pthread_mutex_lock(&writing_mutex);
-			// initialize text
-			char* text = buffer;
-			// open file and write to it
-			FILE* fp = fopen("chat_history", "a");
+			//puts(buffer);
+			pthread_mutex_lock(&writing_mutex);//lock file
+			char* text = buffer;//intitialize test
+			FILE* fp = fopen("chat_history", "a");//open and write to file
+			if (fp == NULL ) {
+			       	perror("Error: Can't open Chat History");
+				pthread_mutex_unlock(&writing_mutex);
+				close(client_fd);
+				return 1;
+			}
 			fprintf(fp, "%s", text);
-			// close file
-			fclose(fp);
+			fclose(fp); //close file
 			pthread_mutex_unlock(&writing_mutex);
-			
+
 			//send to other clients
-			for (int i = 0; i < MaxConnects; i++) {
+			for (int i = 0; i < numOfCli; ++i) {
 				printf("Finding client %d, %d\n", i, clients[i]);
-				if (clients[i] != *client_fd) {	
-					printf("sent to: %d\n", clients[i]);
-					send(clients[i], buffer, sizeof(buffer), 0);
+				if (clients[i] != client_fd) {	
+					printf("Note: Sending message to: %d\n", clients[i]);
+					//send(clients[i], buffer, sizeof(buffer), 0);
+					write(clients[i], buffer, count);
 				}
 			}
+			puts(buffer);
+		} else if (count <= 0) {
+			printf("Note: Error Reading from Client, or Client: Count %n", count);
+			if (count <= -1) {
+				perror("Error: Can't read client");
+				break;
+			}
 		}
-		// close the client?
-		close(*client_fd);
+
+		close(*client_fd);//close the client
 	}
 	pthread_exit(0);
 }
@@ -59,13 +73,11 @@ void *ReadClient(void * client) {
 int addClient(int client) {
 	int isThere = 0;
 	int index = 0;
-	for(int j = 0; j < MaxConnects; j++) {
-		if (clients[j] == client) {
+	for(int i = 0; i < numOfCli; ++i) {
+		if (clients[i] == client) { 
 			isThere = 1;
-		}	
-	}
-	if (isThere == 0) {
-		for(int i = 0; i < MaxConnects; i++) {
+		}
+		if (isThere == 0) {
 			if(!clients[i]){
 				clients[i] = client;
 				index = i;
@@ -122,7 +134,12 @@ int main() {
 		printf("Added client: %d at index %d\n", client_fd, index);
 		
 		// listen for client messages and write to logs
-		pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd);
+		if (pthread_create(&read_threads[index], NULL, ReadClient, (void *) &client_fd) != 0) {
+				perror("Error, thread count not be created");
+				printf("Note: Read Thread Failed to Create");
+				close (client_fd);
+		}
 	}
+	
 	return 0;
 }
